@@ -6,7 +6,8 @@
   "scripts": {
     "start": "remotion studio src/index.ts",
     "build": "remotion render src/index.ts VideoPromozionale out/video.mp4",
-    "render": "remotion render src/index.ts VideoPromozionale out/video.mp4"
+    "render": "remotion render src/index.ts VideoPromozionale out/video.mp4",
+    "render:fattoria": "remotion render src/index.ts FattoriaAnimali out/fattoria-animali.mp4"
   },
   "repository": {
     "type": "git",
