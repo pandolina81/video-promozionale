@@ -2,420 +2,534 @@ import React from "react";
 import {
   AbsoluteFill,
   useCurrentFrame,
-  useVideoConfig,
   interpolate,
   spring,
   Sequence,
   Easing,
 } from "remotion";
 
-// ── Brand colors from maestracris.com ──────────────────────────────────────
-const COLORS = {
-  yellow: "#FFD600",
-  green: "#4CAF50",
-  blue: "#1565C0",
-  pink: "#E91E63",
-  lightBlue: "#E3F2FD",
-  darkBlue: "#0D1B5E",
+// ── Canva Brand Colors ──────────────────────────────────────────────────────
+const C = {
+  purple: "#7D2AE8",
+  purpleLight: "#9B59F5",
+  purpleDark: "#5B1FA8",
   white: "#FFFFFF",
-  orange: "#FF6F00",
-  purple: "#7B1FA2",
-  teal: "#00897B",
+  offWhite: "#F5F0FF",
+  black: "#1A1A2E",
+  gray: "#6B7280",
+  grayLight: "#E8E0F5",
+  accent: "#00C4CC",
+  accentWarm: "#FF6B6B",
+  accentYellow: "#FFD166",
 };
 
 const FPS = 30;
 
-// ── Utility: fade-in opacity ────────────────────────────────────────────────
-function fadeIn(frame: number, start: number, duration: number = 15): number {
-  return interpolate(frame, [start, start + duration], [0, 1], {
+function fadeIn(frame: number, start: number, dur = 15): number {
+  return interpolate(frame, [start, start + dur], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
 }
 
-function fadeOut(frame: number, start: number, duration: number = 15): number {
-  return interpolate(frame, [start, start + duration], [1, 0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
+function slideUp(frame: number, start: number, dur = 20): number {
+  return spring({
+    frame: Math.max(0, frame - start),
+    fps: FPS,
+    from: 60,
+    to: 0,
+    config: { damping: 14, stiffness: 120 },
   });
 }
 
-// ── Floating decorative bulb / element ─────────────────────────────────────
-const FloatingBulb: React.FC<{
-  x: number;
-  y: number;
-  size: number;
-  color: string;
-  delay: number;
-  frame: number;
-}> = ({ x, y, size, color, delay, frame }) => {
-  const offset = Math.sin((frame + delay * 20) / 40) * 18;
-  const rotate = Math.sin((frame + delay * 15) / 55) * 10;
-  const opacity = interpolate(frame, [delay, delay + 20], [0, 0.85], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-
+// ── Animated background grid ───────────────────────────────────────────────
+const GridBg: React.FC<{ frame: number; opacity?: number }> = ({ frame, opacity = 0.06 }) => {
+  const offset = (frame * 0.5) % 80;
   return (
     <div
       style={{
         position: "absolute",
-        left: x,
-        top: y + offset,
-        width: size,
-        height: size,
-        borderRadius: "50%",
-        background: color,
+        inset: 0,
         opacity,
-        transform: `rotate(${rotate}deg)`,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: size * 0.55,
-        boxShadow: `0 8px 32px ${color}66`,
-      }}
-    >
-      💡
-    </div>
-  );
-};
-
-// ── Confetti dot ───────────────────────────────────────────────────────────
-const ConfettiDot: React.FC<{
-  x: number;
-  startY: number;
-  size: number;
-  color: string;
-  delay: number;
-  frame: number;
-}> = ({ x, startY, size, color, delay, frame }) => {
-  const progress = interpolate(frame - delay, [0, 60], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  const y = startY + progress * 1200;
-  const rotate = progress * 720;
-  if (frame < delay) return null;
-  return (
-    <div
-      style={{
-        position: "absolute",
-        left: x,
-        top: y,
-        width: size,
-        height: size,
-        borderRadius: size * 0.2,
-        background: color,
-        transform: `rotate(${rotate}deg)`,
-        opacity: 1 - progress * 0.5,
+        backgroundImage: `
+          linear-gradient(${C.white} 1px, transparent 1px),
+          linear-gradient(90deg, ${C.white} 1px, transparent 1px)
+        `,
+        backgroundSize: "80px 80px",
+        backgroundPosition: `0 ${offset}px`,
       }}
     />
   );
 };
 
-// ── Scene 1 – Intro (frames 0–150, 0-5s) ──────────────────────────────────
+// ── Floating shape decoration ──────────────────────────────────────────────
+const FloatShape: React.FC<{
+  x: number;
+  y: number;
+  size: number;
+  color: string;
+  shape: "circle" | "square" | "diamond";
+  delay: number;
+  frame: number;
+  opacity?: number;
+}> = ({ x, y, size, color, shape, delay, frame, opacity = 0.7 }) => {
+  const yOff = Math.sin((frame + delay * 30) / 50) * 14;
+  const rot = Math.sin((frame + delay * 20) / 70) * 12;
+  const op = interpolate(frame, [delay, delay + 20], [0, opacity], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
+  const borderRadius =
+    shape === "circle" ? "50%" : shape === "diamond" ? "8px" : "16px";
+  const transform =
+    shape === "diamond"
+      ? `rotate(${45 + rot}deg)`
+      : `rotate(${rot}deg)`;
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: x,
+        top: y + yOff,
+        width: size,
+        height: size,
+        borderRadius,
+        background: color,
+        opacity: op,
+        transform,
+        boxShadow: `0 8px 32px ${color}44`,
+      }}
+    />
+  );
+};
+
+// ── Pill / chip badge ──────────────────────────────────────────────────────
+const Pill: React.FC<{
+  label: string;
+  color?: string;
+  textColor?: string;
+  fontSize?: number;
+}> = ({ label, color = C.purple, textColor = C.white, fontSize = 28 }) => (
+  <div
+    style={{
+      background: color,
+      borderRadius: 100,
+      padding: "10px 28px",
+      display: "inline-flex",
+      alignItems: "center",
+    }}
+  >
+    <span
+      style={{
+        fontFamily: "sans-serif",
+        fontWeight: 700,
+        fontSize,
+        color: textColor,
+        letterSpacing: 0.3,
+      }}
+    >
+      {label}
+    </span>
+  </div>
+);
+
+// ── Scene 1: Intro (0-210 frames, 0-7s) ───────────────────────────────────
 const SceneIntro: React.FC<{ frame: number }> = ({ frame }) => {
   const logoScale = spring({
     frame,
     fps: FPS,
-    from: 0.4,
+    from: 0.3,
     to: 1,
-    config: { damping: 12, stiffness: 120 },
+    config: { damping: 11, stiffness: 130 },
   });
-  const titleY = spring({
-    frame: Math.max(0, frame - 15),
-    fps: FPS,
-    from: 80,
-    to: 0,
-    config: { damping: 14, stiffness: 100 },
-  });
-  const titleOpacity = fadeIn(frame, 15, 20);
-  const subOpacity = fadeIn(frame, 40, 20);
-  const tagOpacity = fadeIn(frame, 70, 20);
 
-  const confettiColors = [
-    COLORS.yellow, COLORS.pink, COLORS.green, COLORS.blue,
-    COLORS.orange, COLORS.purple, COLORS.teal,
-  ];
-  const confetti = Array.from({ length: 20 }, (_, i) => ({
-    x: (i * 73 + 50) % 980,
-    startY: -30 - (i % 5) * 40,
-    size: 10 + (i % 4) * 8,
-    color: confettiColors[i % confettiColors.length],
-    delay: (i % 6) * 5,
-  }));
+  const logoGlow = interpolate(frame, [30, 90], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
+  const taglineOp = fadeIn(frame, 40, 20);
+  const taglineY = slideUp(frame, 40, 20);
+  const subtitleOp = fadeIn(frame, 70, 20);
+  const subtitleY = slideUp(frame, 70, 20);
+  const badgeOp = fadeIn(frame, 100, 20);
+
+  const pulse = 1 + Math.sin(frame / 20) * 0.03;
 
   return (
     <AbsoluteFill
       style={{
-        background: `linear-gradient(160deg, ${COLORS.darkBlue} 0%, #1a237e 55%, #283593 100%)`,
+        background: `linear-gradient(170deg, ${C.purpleDark} 0%, ${C.purple} 50%, ${C.purpleLight} 100%)`,
         alignItems: "center",
         justifyContent: "center",
         flexDirection: "column",
       }}
     >
-      {/* confetti burst */}
-      {confetti.map((c, i) => (
-        <ConfettiDot key={i} {...c} frame={frame} />
-      ))}
+      <GridBg frame={frame} opacity={0.08} />
 
-      {/* floating bulbs background */}
-      <FloatingBulb x={40}  y={200} size={70} color={COLORS.yellow} delay={10} frame={frame} />
-      <FloatingBulb x={900} y={350} size={55} color={COLORS.pink}   delay={5}  frame={frame} />
-      <FloatingBulb x={60}  y={700} size={60} color={COLORS.green}  delay={20} frame={frame} />
-      <FloatingBulb x={880} y={900} size={65} color={COLORS.blue}   delay={15} frame={frame} />
+      {/* Floating shapes */}
+      <FloatShape x={-20} y={200}  size={120} color={C.accent}      shape="circle"  delay={5}  frame={frame} opacity={0.25} />
+      <FloatShape x={940} y={400}  size={90}  color={C.accentWarm}  shape="diamond" delay={10} frame={frame} opacity={0.2}  />
+      <FloatShape x={30}  y={800}  size={80}  color={C.accentYellow} shape="square" delay={15} frame={frame} opacity={0.2}  />
+      <FloatShape x={920} y={1100} size={100} color={C.purpleLight} shape="circle"  delay={8}  frame={frame} opacity={0.15} />
+      <FloatShape x={-10} y={1400} size={70}  color={C.accent}      shape="diamond" delay={20} frame={frame} opacity={0.2}  />
+      <FloatShape x={950} y={1600} size={85}  color={C.accentWarm}  shape="circle"  delay={12} frame={frame} opacity={0.2}  />
 
-      {/* Logo circle */}
+      {/* Canva Logo "C" */}
       <div
         style={{
-          width: 220,
-          height: 220,
+          width: 240,
+          height: 240,
           borderRadius: "50%",
-          background: COLORS.yellow,
+          background: C.white,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: 110,
-          transform: `scale(${logoScale})`,
-          boxShadow: `0 0 60px ${COLORS.yellow}88`,
-          marginBottom: 48,
+          transform: `scale(${logoScale * pulse})`,
+          boxShadow: `0 0 ${80 * logoGlow}px ${C.white}66, 0 0 ${160 * logoGlow}px ${C.purpleLight}44`,
+          marginBottom: 52,
         }}
       >
-        📚
+        <span
+          style={{
+            fontFamily: "sans-serif",
+            fontWeight: 900,
+            fontSize: 130,
+            color: C.purple,
+            lineHeight: 1,
+            letterSpacing: -4,
+          }}
+        >
+          C
+        </span>
       </div>
 
-      {/* Site name */}
+      {/* Main title */}
       <div
         style={{
-          transform: `translateY(${titleY}px)`,
-          opacity: titleOpacity,
+          opacity: taglineOp,
+          transform: `translateY(${taglineY}px)`,
           textAlign: "center",
+          marginBottom: 24,
         }}
       >
         <div
           style={{
-            fontFamily: "'Georgia', serif",
-            fontSize: 92,
+            fontFamily: "sans-serif",
             fontWeight: 900,
-            color: COLORS.white,
-            letterSpacing: -2,
-            textShadow: "0 4px 24px rgba(0,0,0,0.5)",
+            fontSize: 110,
+            color: C.white,
+            letterSpacing: -3,
+            lineHeight: 0.95,
+            textShadow: "0 4px 32px rgba(0,0,0,0.3)",
           }}
         >
-          Maestra
-          <span style={{ color: COLORS.yellow }}> Cris</span>
+          Canva
         </div>
       </div>
 
-      {/* Tagline */}
+      {/* Subtitle */}
       <div
         style={{
-          opacity: subOpacity,
-          marginTop: 24,
-          fontSize: 44,
-          color: COLORS.lightBlue,
-          fontFamily: "sans-serif",
+          opacity: subtitleOp,
+          transform: `translateY(${subtitleY}px)`,
           textAlign: "center",
-          padding: "0 60px",
-          lineHeight: 1.3,
+          padding: "0 80px",
+          marginBottom: 48,
         }}
       >
-        Risorse didattiche gratuite
+        <div
+          style={{
+            fontFamily: "sans-serif",
+            fontWeight: 400,
+            fontSize: 46,
+            color: "rgba(255,255,255,0.88)",
+            lineHeight: 1.35,
+          }}
+        >
+          Crea grafiche straordinarie{"\n"}in pochi minuti
+        </div>
       </div>
 
-      {/* Stars row */}
-      <div
-        style={{
-          opacity: tagOpacity,
-          marginTop: 36,
-          display: "flex",
-          gap: 12,
-        }}
-      >
-        {["⭐", "⭐", "⭐", "⭐", "⭐"].map((s, i) => (
-          <span key={i} style={{ fontSize: 42 }}>{s}</span>
-        ))}
+      {/* Badge */}
+      <div style={{ opacity: badgeOp, display: "flex", gap: 20, flexWrap: "wrap", justifyContent: "center", padding: "0 60px" }}>
+        <Pill label="✦ Gratis" color="rgba(255,255,255,0.2)" fontSize={32} />
+        <Pill label="✦ Online" color="rgba(255,255,255,0.2)" fontSize={32} />
+        <Pill label="✦ Intuitivo" color="rgba(255,255,255,0.2)" fontSize={32} />
       </div>
     </AbsoluteFill>
   );
 };
 
-// ── Scene 2 – Content categories (frames 150–420, 5-14s) ──────────────────
-const CategoryCard: React.FC<{
+// ── Scene 2: Templates (210-450 frames, 7-15s) ────────────────────────────
+const TemplateCard: React.FC<{
   emoji: string;
-  label: string;
+  title: string;
+  subtitle: string;
   color: string;
   frame: number;
   delay: number;
-}> = ({ emoji, label, color, frame, delay }) => {
+  index: number;
+}> = ({ emoji, title, subtitle, color, frame, delay, index }) => {
   const scale = spring({
     frame: Math.max(0, frame - delay),
     fps: FPS,
     from: 0,
     to: 1,
-    config: { damping: 11, stiffness: 130 },
+    config: { damping: 12, stiffness: 140 },
   });
+  const op = fadeIn(frame, delay, 15);
+
   return (
     <div
       style={{
-        width: 440,
-        background: COLORS.white,
+        background: C.white,
         borderRadius: 28,
-        padding: "36px 28px",
+        padding: "28px 32px",
         display: "flex",
         alignItems: "center",
-        gap: 24,
-        boxShadow: `0 12px 40px rgba(0,0,0,0.22)`,
+        gap: 28,
+        boxShadow: "0 16px 48px rgba(0,0,0,0.14)",
         transform: `scale(${scale})`,
-        borderLeft: `10px solid ${color}`,
+        opacity: op,
+        width: 880,
+        borderLeft: `8px solid ${color}`,
       }}
     >
-      <span style={{ fontSize: 64 }}>{emoji}</span>
-      <span
+      <div
         style={{
-          fontFamily: "sans-serif",
-          fontWeight: 700,
-          fontSize: 36,
-          color: COLORS.darkBlue,
-          lineHeight: 1.2,
+          width: 100,
+          height: 100,
+          borderRadius: 20,
+          background: `${color}22`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 56,
+          flexShrink: 0,
         }}
       >
-        {label}
-      </span>
+        {emoji}
+      </div>
+      <div style={{ flex: 1 }}>
+        <div
+          style={{
+            fontFamily: "sans-serif",
+            fontWeight: 800,
+            fontSize: 40,
+            color: C.black,
+            lineHeight: 1.1,
+            marginBottom: 8,
+          }}
+        >
+          {title}
+        </div>
+        <div
+          style={{
+            fontFamily: "sans-serif",
+            fontWeight: 400,
+            fontSize: 30,
+            color: C.gray,
+            lineHeight: 1.2,
+          }}
+        >
+          {subtitle}
+        </div>
+      </div>
+      <div
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: "50%",
+          background: color,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: C.white,
+          fontSize: 22,
+          fontWeight: 900,
+          flexShrink: 0,
+        }}
+      >
+        →
+      </div>
     </div>
   );
 };
 
-const SceneCategorie: React.FC<{ frame: number }> = ({ frame }) => {
+const SceneTemplates: React.FC<{ frame: number }> = ({ frame }) => {
   const titleOp = fadeIn(frame, 0, 20);
-  const titleY = spring({ frame, fps: FPS, from: -40, to: 0, config: { damping: 14 } });
+  const titleY = slideUp(frame, 0, 20);
 
-  const categories = [
-    { emoji: "🔢", label: "Matematica", color: COLORS.blue,   delay: 20 },
-    { emoji: "📖", label: "Attività Didattiche", color: COLORS.green,  delay: 40 },
-    { emoji: "🎮", label: "Giochi Didattici", color: COLORS.pink,   delay: 60 },
-    { emoji: "💻", label: "Strumenti PC", color: COLORS.orange, delay: 80 },
-    { emoji: "📊", label: "Excel & Office", color: COLORS.purple, delay: 100 },
-    { emoji: "🌍", label: "Strumenti Utili", color: COLORS.teal,   delay: 120 },
+  const templates = [
+    { emoji: "📱", title: "Post Social", subtitle: "Instagram, Facebook, TikTok", color: C.accentWarm, delay: 20 },
+    { emoji: "🎨", title: "Presentazioni", subtitle: "Slide professionali in un clic", color: C.purple, delay: 50 },
+    { emoji: "📄", title: "Flyer & Locandine", subtitle: "Stampa pronta in minuti", color: C.accent, delay: 80 },
+    { emoji: "🎬", title: "Video & Reel", subtitle: "Contenuti animati coinvolgenti", color: C.accentYellow, delay: 110 },
+    { emoji: "🛍️", title: "Branding & Logo", subtitle: "Identità visiva unica", color: "#FF6EC7", delay: 140 },
   ];
 
   return (
     <AbsoluteFill
       style={{
-        background: `linear-gradient(180deg, ${COLORS.lightBlue} 0%, #BBDEFB 100%)`,
+        background: C.offWhite,
         flexDirection: "column",
         alignItems: "center",
-        paddingTop: 100,
+        paddingTop: 90,
         gap: 0,
       }}
     >
-      {/* decorative circles */}
-      <div style={{ position: "absolute", top: -80, right: -80, width: 300, height: 300, borderRadius: "50%", background: COLORS.yellow, opacity: 0.25 }} />
-      <div style={{ position: "absolute", bottom: -60, left: -60, width: 250, height: 250, borderRadius: "50%", background: COLORS.pink, opacity: 0.2 }} />
+      {/* top bar */}
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 10,
+          background: `linear-gradient(90deg, ${C.purple}, ${C.accent}, ${C.accentWarm})`,
+        }}
+      />
 
+      {/* decorative circles */}
+      <div style={{ position: "absolute", top: -100, right: -80, width: 320, height: 320, borderRadius: "50%", background: C.purple, opacity: 0.07 }} />
+      <div style={{ position: "absolute", bottom: -80, left: -60, width: 280, height: 280, borderRadius: "50%", background: C.accent, opacity: 0.07 }} />
+
+      {/* Section title */}
       <div
         style={{
           opacity: titleOp,
           transform: `translateY(${titleY}px)`,
-          fontFamily: "sans-serif",
-          fontWeight: 900,
-          fontSize: 66,
-          color: COLORS.darkBlue,
           textAlign: "center",
-          marginBottom: 60,
-          lineHeight: 1.15,
+          marginBottom: 56,
           padding: "0 60px",
         }}
       >
-        Cosa trovi sul blog?
+        <div
+          style={{
+            fontFamily: "sans-serif",
+            fontWeight: 900,
+            fontSize: 72,
+            color: C.black,
+            lineHeight: 1.1,
+          }}
+        >
+          Migliaia di{" "}
+          <span style={{ color: C.purple }}>Template</span>
+        </div>
+        <div
+          style={{
+            fontFamily: "sans-serif",
+            fontSize: 38,
+            color: C.gray,
+            marginTop: 16,
+            fontWeight: 400,
+          }}
+        >
+          Scegli, personalizza, pubblica
+        </div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 32, alignItems: "center" }}>
-        {categories.map((c, i) => (
-          <CategoryCard key={i} {...c} frame={frame} />
+      {/* Template cards */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 28, alignItems: "center" }}>
+        {templates.map((t, i) => (
+          <TemplateCard key={i} {...t} frame={frame} index={i} />
         ))}
       </div>
     </AbsoluteFill>
   );
 };
 
-// ── Scene 3 – Showcase features (frames 420–660, 14-22s) ──────────────────
-const FeatureItem: React.FC<{
+// ── Scene 3: Features (450-690 frames, 15-23s) ────────────────────────────
+const FeatureBlock: React.FC<{
   icon: string;
-  text: string;
+  title: string;
+  desc: string;
+  color: string;
   frame: number;
   delay: number;
-  color: string;
-}> = ({ icon, text, frame, delay, color }) => {
+  fromLeft?: boolean;
+}> = ({ icon, title, desc, color, frame, delay, fromLeft = true }) => {
   const x = spring({
     frame: Math.max(0, frame - delay),
     fps: FPS,
-    from: -120,
+    from: fromLeft ? -140 : 140,
     to: 0,
-    config: { damping: 13, stiffness: 110 },
+    config: { damping: 14, stiffness: 110 },
   });
-  const op = fadeIn(frame, delay, 15);
+  const op = fadeIn(frame, delay, 20);
+
   return (
     <div
       style={{
         display: "flex",
-        alignItems: "center",
-        gap: 30,
+        alignItems: "flex-start",
+        gap: 32,
         transform: `translateX(${x}px)`,
         opacity: op,
-        background: "rgba(255,255,255,0.15)",
-        borderRadius: 20,
-        padding: "28px 36px",
+        background: "rgba(255,255,255,0.1)",
+        borderRadius: 28,
+        padding: "36px 40px",
         width: 900,
-        backdropFilter: "blur(4px)",
-        border: `2px solid ${color}55`,
+        backdropFilter: "blur(8px)",
+        border: `1.5px solid rgba(255,255,255,0.15)`,
       }}
     >
       <div
         style={{
-          width: 90,
-          height: 90,
-          borderRadius: 20,
+          width: 100,
+          height: 100,
+          borderRadius: 24,
           background: color,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: 50,
+          fontSize: 52,
           flexShrink: 0,
+          boxShadow: `0 8px 28px ${color}55`,
         }}
       >
         {icon}
       </div>
-      <span
-        style={{
-          fontFamily: "sans-serif",
-          fontSize: 42,
-          color: COLORS.white,
-          fontWeight: 600,
-          lineHeight: 1.25,
-        }}
-      >
-        {text}
-      </span>
+      <div style={{ flex: 1 }}>
+        <div
+          style={{
+            fontFamily: "sans-serif",
+            fontWeight: 800,
+            fontSize: 46,
+            color: C.white,
+            lineHeight: 1.1,
+            marginBottom: 10,
+          }}
+        >
+          {title}
+        </div>
+        <div
+          style={{
+            fontFamily: "sans-serif",
+            fontWeight: 400,
+            fontSize: 33,
+            color: "rgba(255,255,255,0.75)",
+            lineHeight: 1.35,
+          }}
+        >
+          {desc}
+        </div>
+      </div>
     </div>
   );
 };
 
 const SceneFeatures: React.FC<{ frame: number }> = ({ frame }) => {
   const titleOp = fadeIn(frame, 0, 20);
-
-  const features = [
-    { icon: "🆓", text: "Tutto completamente GRATIS", color: COLORS.yellow,  delay: 20 },
-    { icon: "🖨️", text: "Stampabile in PDF", color: COLORS.green,  delay: 50 },
-    { icon: "🧑‍🏫", text: "Per insegnanti e genitori", color: COLORS.pink,   delay: 80 },
-    { icon: "🎯", text: "Schede pronte all'uso", color: COLORS.blue,   delay: 110 },
-    { icon: "🔄", text: "Aggiornato ogni settimana", color: COLORS.orange, delay: 140 },
-  ];
+  const titleY = slideUp(frame, 0, 20);
 
   return (
     <AbsoluteFill
       style={{
-        background: `linear-gradient(145deg, #1B5E20 0%, #2E7D32 50%, #388E3C 100%)`,
+        background: `linear-gradient(160deg, ${C.purpleDark} 0%, #3B1A7A 50%, ${C.purple} 100%)`,
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
@@ -423,69 +537,108 @@ const SceneFeatures: React.FC<{ frame: number }> = ({ frame }) => {
         padding: "60px 40px",
       }}
     >
-      {/* top decoration */}
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 8, background: `linear-gradient(90deg, ${COLORS.yellow}, ${COLORS.pink}, ${COLORS.blue}, ${COLORS.green})` }} />
+      <GridBg frame={frame} opacity={0.06} />
+
+      <FloatShape x={-30} y={100}  size={110} color={C.accent}      shape="circle"  delay={0}  frame={frame} opacity={0.18} />
+      <FloatShape x={950} y={600}  size={90}  color={C.accentWarm}  shape="diamond" delay={5}  frame={frame} opacity={0.15} />
+      <FloatShape x={-20} y={1300} size={80}  color={C.accentYellow} shape="circle" delay={10} frame={frame} opacity={0.15} />
 
       <div
         style={{
           opacity: titleOp,
-          fontFamily: "sans-serif",
-          fontWeight: 900,
-          fontSize: 70,
-          color: COLORS.white,
+          transform: `translateY(${titleY}px)`,
           textAlign: "center",
           marginBottom: 20,
-          lineHeight: 1.15,
-          textShadow: "0 3px 16px rgba(0,0,0,0.4)",
         }}
       >
-        Perché scegliere<br />
-        <span style={{ color: COLORS.yellow }}>MaestraCris?</span>
+        <div
+          style={{
+            fontFamily: "sans-serif",
+            fontWeight: 900,
+            fontSize: 72,
+            color: C.white,
+            lineHeight: 1.1,
+            textShadow: "0 3px 20px rgba(0,0,0,0.3)",
+          }}
+        >
+          Come funziona
+        </div>
+        <div
+          style={{
+            fontFamily: "sans-serif",
+            fontSize: 38,
+            color: "rgba(255,255,255,0.65)",
+            marginTop: 12,
+          }}
+        >
+          Semplice. Veloce. Potente.
+        </div>
       </div>
 
-      {features.map((f, i) => (
-        <FeatureItem key={i} {...f} frame={frame} />
-      ))}
+      <FeatureBlock
+        icon="🖱️"
+        title="Drag & Drop"
+        desc="Trascina elementi, testi e immagini — nessuna esperienza richiesta"
+        color={C.accent}
+        frame={frame}
+        delay={30}
+        fromLeft={true}
+      />
+      <FeatureBlock
+        icon="🎨"
+        title="Personalizzazione totale"
+        desc="Colori, font, layout: ogni dettaglio è tuo"
+        color={C.accentYellow}
+        frame={frame}
+        delay={70}
+        fromLeft={false}
+      />
+      <FeatureBlock
+        icon="📤"
+        title="Esportazione facile"
+        desc="PNG, PDF, MP4 o condividi direttamente online"
+        color={C.accentWarm}
+        frame={frame}
+        delay={110}
+        fromLeft={true}
+      />
+      <FeatureBlock
+        icon="☁️"
+        title="Salvataggio automatico"
+        desc="Il tuo lavoro è sempre al sicuro nel cloud"
+        color="#9B59F5"
+        frame={frame}
+        delay={150}
+        fromLeft={false}
+      />
     </AbsoluteFill>
   );
 };
 
-// ── Scene 4 – CTA / Outro (frames 660–900, 22-30s) ────────────────────────
+// ── Scene 4: CTA Outro (690-900 frames, 23-30s) ───────────────────────────
 const SceneOutro: React.FC<{ frame: number }> = ({ frame }) => {
-  const bgScale = interpolate(frame, [0, 240], [1.06, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.out(Easing.cubic),
-  });
-
   const logoScale = spring({
-    frame: Math.max(0, frame - 20),
+    frame: Math.max(0, frame - 10),
     fps: FPS,
     from: 0,
     to: 1,
-    config: { damping: 10, stiffness: 120 },
+    config: { damping: 11, stiffness: 130 },
   });
 
   const titleOp = fadeIn(frame, 30, 20);
-  const titleY = spring({
-    frame: Math.max(0, frame - 30),
-    fps: FPS,
-    from: 60,
-    to: 0,
-    config: { damping: 14 },
-  });
+  const titleY = slideUp(frame, 30, 20);
 
-  const urlOp = fadeIn(frame, 70, 25);
+  const urlOp = fadeIn(frame, 70, 20);
   const urlScale = spring({
     frame: Math.max(0, frame - 70),
     fps: FPS,
-    from: 0.7,
+    from: 0.75,
     to: 1,
-    config: { damping: 12, stiffness: 120 },
+    config: { damping: 10, stiffness: 140 },
   });
 
   const ctaOp = fadeIn(frame, 110, 20);
-  const ctaBounce = spring({
+  const ctaScale = spring({
     frame: Math.max(0, frame - 110),
     fps: FPS,
     from: 0,
@@ -493,75 +646,66 @@ const SceneOutro: React.FC<{ frame: number }> = ({ frame }) => {
     config: { damping: 8, stiffness: 160 },
   });
 
-  const pulse = 1 + Math.sin(frame / 12) * 0.03;
+  const noteOp = fadeIn(frame, 150, 20);
+
+  const pulse = 1 + Math.sin(frame / 14) * 0.025;
 
   return (
     <AbsoluteFill
       style={{
-        background: `linear-gradient(160deg, ${COLORS.darkBlue} 0%, #1a237e 60%, #4527A0 100%)`,
+        background: `linear-gradient(170deg, ${C.purpleDark} 0%, ${C.purple} 55%, ${C.purpleLight} 100%)`,
         alignItems: "center",
         justifyContent: "center",
         flexDirection: "column",
-        transform: `scale(${bgScale})`,
       }}
     >
-      {/* rainbow top bar */}
+      <GridBg frame={frame} opacity={0.07} />
+
+      {/* Top gradient bar */}
       <div
         style={{
           position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 12,
-          background: `linear-gradient(90deg, ${COLORS.yellow}, ${COLORS.orange}, ${COLORS.pink}, ${COLORS.purple}, ${COLORS.blue}, ${COLORS.teal}, ${COLORS.green})`,
+          top: 0, left: 0, right: 0,
+          height: 10,
+          background: `linear-gradient(90deg, ${C.accent}, ${C.purple}, ${C.accentWarm})`,
         }}
       />
 
-      {/* floating decorations */}
-      <FloatingBulb x={30}  y={150} size={80} color={COLORS.yellow} delay={0}  frame={frame} />
-      <FloatingBulb x={880} y={300} size={60} color={COLORS.pink}   delay={10} frame={frame} />
-      <FloatingBulb x={50}  y={900} size={70} color={COLORS.green}  delay={5}  frame={frame} />
-      <FloatingBulb x={870} y={1100} size={75} color={COLORS.blue}  delay={15} frame={frame} />
+      {/* Floating shapes */}
+      <FloatShape x={-30} y={150}  size={130} color={C.accent}       shape="circle"  delay={0}  frame={frame} opacity={0.22} />
+      <FloatShape x={940} y={350}  size={100} color={C.accentWarm}   shape="diamond" delay={8}  frame={frame} opacity={0.18} />
+      <FloatShape x={20}  y={900}  size={90}  color={C.accentYellow} shape="square"  delay={4}  frame={frame} opacity={0.18} />
+      <FloatShape x={930} y={1100} size={110} color={C.purpleLight}  shape="circle"  delay={12} frame={frame} opacity={0.15} />
+      <FloatShape x={-20} y={1500} size={85}  color={C.accent}       shape="diamond" delay={16} frame={frame} opacity={0.18} />
+      <FloatShape x={940} y={1650} size={95}  color={C.accentWarm}   shape="circle"  delay={6}  frame={frame} opacity={0.15} />
 
-      {/* pencil icons scattered */}
-      {[
-        { x: 120, y: 500, rot: 25 },
-        { x: 870, y: 700, rot: -30 },
-        { x: 80,  y: 1300, rot: 15 },
-        { x: 890, y: 1500, rot: -20 },
-      ].map((p, i) => (
-        <div
-          key={i}
-          style={{
-            position: "absolute",
-            left: p.x,
-            top: p.y,
-            fontSize: 55,
-            transform: `rotate(${p.rot}deg)`,
-            opacity: 0.5,
-          }}
-        >
-          ✏️
-        </div>
-      ))}
-
-      {/* Logo */}
+      {/* Canva "C" logo */}
       <div
         style={{
-          width: 200,
-          height: 200,
+          width: 220,
+          height: 220,
           borderRadius: "50%",
-          background: COLORS.yellow,
+          background: C.white,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: 100,
           transform: `scale(${logoScale})`,
-          boxShadow: `0 0 80px ${COLORS.yellow}66`,
-          marginBottom: 36,
+          boxShadow: `0 0 80px rgba(255,255,255,0.3), 0 0 160px ${C.purpleLight}44`,
+          marginBottom: 44,
         }}
       >
-        📚
+        <span
+          style={{
+            fontFamily: "sans-serif",
+            fontWeight: 900,
+            fontSize: 120,
+            color: C.purple,
+            lineHeight: 1,
+            letterSpacing: -4,
+          }}
+        >
+          C
+        </span>
       </div>
 
       {/* Title */}
@@ -571,53 +715,71 @@ const SceneOutro: React.FC<{ frame: number }> = ({ frame }) => {
           transform: `translateY(${titleY}px)`,
           textAlign: "center",
           marginBottom: 16,
+          padding: "0 60px",
         }}
       >
         <div
           style={{
-            fontFamily: "'Georgia', serif",
-            fontSize: 88,
+            fontFamily: "sans-serif",
             fontWeight: 900,
-            color: COLORS.white,
-            textShadow: "0 4px 24px rgba(0,0,0,0.5)",
+            fontSize: 90,
+            color: C.white,
+            letterSpacing: -2,
+            lineHeight: 0.95,
+            textShadow: "0 4px 28px rgba(0,0,0,0.25)",
           }}
         >
-          Maestra<span style={{ color: COLORS.yellow }}>Cris</span>
+          Crea. Condividi.
         </div>
         <div
           style={{
             fontFamily: "sans-serif",
-            fontSize: 40,
-            color: COLORS.lightBlue,
+            fontWeight: 900,
+            fontSize: 90,
+            color: C.white,
+            letterSpacing: -2,
+            lineHeight: 0.95,
             marginTop: 8,
           }}
         >
-          Il blog per chi ama insegnare
+          <span style={{ color: C.accentYellow }}>Stupisci.</span>
+        </div>
+        <div
+          style={{
+            fontFamily: "sans-serif",
+            fontSize: 38,
+            color: "rgba(255,255,255,0.75)",
+            marginTop: 28,
+            fontWeight: 400,
+            lineHeight: 1.3,
+          }}
+        >
+          Il design alla portata di tutti
         </div>
       </div>
 
-      {/* URL box */}
+      {/* URL badge */}
       <div
         style={{
           opacity: urlOp,
           transform: `scale(${urlScale * pulse})`,
-          background: COLORS.yellow,
-          borderRadius: 24,
-          padding: "28px 60px",
-          marginTop: 40,
-          boxShadow: `0 8px 40px ${COLORS.yellow}88`,
+          background: C.white,
+          borderRadius: 28,
+          padding: "28px 64px",
+          marginTop: 48,
+          boxShadow: `0 12px 48px rgba(0,0,0,0.25)`,
         }}
       >
         <span
           style={{
             fontFamily: "sans-serif",
-            fontSize: 58,
             fontWeight: 900,
-            color: COLORS.darkBlue,
-            letterSpacing: 1,
+            fontSize: 62,
+            color: C.purple,
+            letterSpacing: -1,
           }}
         >
-          maestracris.com
+          canva.com
         </span>
       </div>
 
@@ -625,59 +787,82 @@ const SceneOutro: React.FC<{ frame: number }> = ({ frame }) => {
       <div
         style={{
           opacity: ctaOp,
-          transform: `scale(${ctaBounce})`,
-          marginTop: 48,
-          background: COLORS.pink,
-          borderRadius: 60,
-          padding: "32px 80px",
-          boxShadow: `0 8px 32px ${COLORS.pink}88`,
+          transform: `scale(${ctaScale})`,
+          marginTop: 44,
+          background: `linear-gradient(135deg, ${C.accent}, ${C.accentWarm})`,
+          borderRadius: 100,
+          padding: "34px 88px",
+          boxShadow: `0 12px 40px rgba(0,196,204,0.45)`,
         }}
       >
         <span
           style={{
             fontFamily: "sans-serif",
             fontWeight: 900,
-            fontSize: 50,
-            color: COLORS.white,
+            fontSize: 52,
+            color: C.white,
             letterSpacing: 0.5,
           }}
         >
-          Visita ora! 🎉
+          Inizia Gratis →
         </span>
       </div>
 
-      {/* rainbow bottom bar */}
+      {/* Fine print */}
+      <div
+        style={{
+          opacity: noteOp,
+          position: "absolute",
+          bottom: 60,
+          fontFamily: "sans-serif",
+          fontSize: 28,
+          color: "rgba(255,255,255,0.5)",
+          textAlign: "center",
+          padding: "0 80px",
+        }}
+      >
+        Nessuna carta di credito richiesta
+      </div>
+
+      {/* Bottom bar */}
       <div
         style={{
           position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: 12,
-          background: `linear-gradient(90deg, ${COLORS.green}, ${COLORS.teal}, ${COLORS.blue}, ${COLORS.purple}, ${COLORS.pink}, ${COLORS.orange}, ${COLORS.yellow})`,
+          bottom: 0, left: 0, right: 0,
+          height: 10,
+          background: `linear-gradient(90deg, ${C.accentWarm}, ${C.purple}, ${C.accent})`,
         }}
       />
     </AbsoluteFill>
   );
 };
 
-// ── Transition overlay ─────────────────────────────────────────────────────
-const Transition: React.FC<{ frame: number; totalFrames: number; color: string }> = ({
+// ── Wipe transition ────────────────────────────────────────────────────────
+const WipeTransition: React.FC<{ frame: number; totalFrames: number; color: string }> = ({
   frame,
   totalFrames,
   color,
 }) => {
   const half = totalFrames / 2;
-  const scale = frame < half
-    ? interpolate(frame, [0, half], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.in(Easing.cubic) })
-    : interpolate(frame, [half, totalFrames], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) });
+  const progress =
+    frame < half
+      ? interpolate(frame, [0, half], [0, 1], {
+          extrapolateLeft: "clamp",
+          extrapolateRight: "clamp",
+          easing: Easing.in(Easing.cubic),
+        })
+      : interpolate(frame, [half, totalFrames], [1, 0], {
+          extrapolateLeft: "clamp",
+          extrapolateRight: "clamp",
+          easing: Easing.out(Easing.cubic),
+        });
 
   return (
     <AbsoluteFill
       style={{
         background: color,
-        transform: `scale(${scale})`,
-        borderRadius: `${(1 - scale) * 50}%`,
+        transform: `scaleY(${progress})`,
+        transformOrigin: "center",
         pointerEvents: "none",
       }}
     />
@@ -685,67 +870,54 @@ const Transition: React.FC<{ frame: number; totalFrames: number; color: string }
 };
 
 // ── Root composition ───────────────────────────────────────────────────────
+// Total: 900 frames = 30s at 30fps
+// Scene 1 Intro:      0   – 225  (0–7.5s)
+// Transition 1→2:   210   – 240
+// Scene 2 Templates: 225  – 465  (7.5–15.5s)
+// Transition 2→3:   450   – 480
+// Scene 3 Features:  465  – 705  (15.5–23.5s)
+// Transition 3→4:   690   – 720
+// Scene 4 Outro:     705  – 900  (23.5–30s)
+
 export const VideoPromozionale: React.FC = () => {
   const frame = useCurrentFrame();
-
-  // Scene timing (frames)
-  // Intro:      0   – 165  (0-5.5s)
-  // Transition: 150 – 180
-  // Categorie:  165 – 435  (5.5-14.5s)
-  // Transition: 420 – 450
-  // Features:   435 – 675  (14.5-22.5s)
-  // Transition: 660 – 690
-  // Outro:      675 – 900  (22.5-30s)
-
-  const transitionDur = 30;
+  const TR = 30; // transition duration in frames
 
   return (
-    <AbsoluteFill style={{ background: COLORS.darkBlue }}>
-      {/* ── Scene 1: Intro ── */}
-      <Sequence from={0} durationInFrames={180}>
+    <AbsoluteFill style={{ background: C.purpleDark }}>
+      {/* Scene 1: Intro */}
+      <Sequence from={0} durationInFrames={240}>
         <SceneIntro frame={frame} />
       </Sequence>
 
-      {/* ── Transition 1→2 ── */}
-      <Sequence from={150} durationInFrames={transitionDur}>
-        <Transition
-          frame={frame - 150}
-          totalFrames={transitionDur}
-          color={COLORS.lightBlue}
-        />
+      {/* Transition 1→2 */}
+      <Sequence from={210} durationInFrames={TR}>
+        <WipeTransition frame={frame - 210} totalFrames={TR} color={C.offWhite} />
       </Sequence>
 
-      {/* ── Scene 2: Categorie ── */}
-      <Sequence from={165} durationInFrames={285}>
-        <SceneCategorie frame={frame - 165} />
+      {/* Scene 2: Templates */}
+      <Sequence from={225} durationInFrames={255}>
+        <SceneTemplates frame={frame - 225} />
       </Sequence>
 
-      {/* ── Transition 2→3 ── */}
-      <Sequence from={435} durationInFrames={transitionDur}>
-        <Transition
-          frame={frame - 435}
-          totalFrames={transitionDur}
-          color={COLORS.green}
-        />
+      {/* Transition 2→3 */}
+      <Sequence from={450} durationInFrames={TR}>
+        <WipeTransition frame={frame - 450} totalFrames={TR} color={C.purpleDark} />
       </Sequence>
 
-      {/* ── Scene 3: Features ── */}
-      <Sequence from={450} durationInFrames={225}>
-        <SceneFeatures frame={frame - 450} />
+      {/* Scene 3: Features */}
+      <Sequence from={465} durationInFrames={255}>
+        <SceneFeatures frame={frame - 465} />
       </Sequence>
 
-      {/* ── Transition 3→4 ── */}
-      <Sequence from={660} durationInFrames={transitionDur}>
-        <Transition
-          frame={frame - 660}
-          totalFrames={transitionDur}
-          color={COLORS.darkBlue}
-        />
+      {/* Transition 3→4 */}
+      <Sequence from={690} durationInFrames={TR}>
+        <WipeTransition frame={frame - 690} totalFrames={TR} color={C.purple} />
       </Sequence>
 
-      {/* ── Scene 4: Outro / CTA ── */}
-      <Sequence from={675} durationInFrames={225}>
-        <SceneOutro frame={frame - 675} />
+      {/* Scene 4: Outro CTA */}
+      <Sequence from={705} durationInFrames={195}>
+        <SceneOutro frame={frame - 705} />
       </Sequence>
     </AbsoluteFill>
   );
