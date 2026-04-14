@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Video Marketing AI Generator</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 32px 16px;
+    }
+
+    .container {
+      max-width: 820px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    header h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      background: linear-gradient(90deg, #f59e0b, #ef4444, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+
+    header p {
+      color: #94a3b8;
+      font-size: 1rem;
+    }
+
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 28px;
+      margin-bottom: 24px;
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #f59e0b;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 20px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group.full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #cbd5e1;
+    }
+
+    input, select, textarea {
+      background: #0f172a;
+      border: 1px solid #475569;
+      border-radius: 8px;
+      color: #e2e8f0;
+      font-size: 0.95rem;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: inherit;
+      width: 100%;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: #f59e0b;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    select option {
+      background: #1e293b;
+    }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      margin-top: 20px;
+      padding: 14px 28px;
+      background: linear-gradient(135deg, #f59e0b, #ef4444);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 1.05rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+
+    .btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Output area */
+    #output-section { display: none; }
+
+    .output-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .output-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      background: #0f172a;
+      border-bottom: 1px solid #334155;
+    }
+
+    .output-toolbar span {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    .copy-btn {
+      background: #334155;
+      border: none;
+      border-radius: 6px;
+      color: #e2e8f0;
+      font-size: 0.8rem;
+      padding: 6px 14px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .copy-btn:hover { background: #475569; }
+
+    #result {
+      padding: 24px;
+      min-height: 120px;
+      white-space: pre-wrap;
+      line-height: 1.75;
+      font-size: 0.95rem;
+      color: #e2e8f0;
+    }
+
+    /* Markdown-like rendering */
+    #result strong { color: #f59e0b; }
+    #result .section-title {
+      display: block;
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #f59e0b;
+      margin: 20px 0 8px;
+      border-left: 3px solid #f59e0b;
+      padding-left: 10px;
+    }
+
+    /* Loader */
+    .loader {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      background: #0f172a;
+      border-top: 1px solid #334155;
+      font-size: 0.8rem;
+      color: #64748b;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    .dot.idle { background: #475569; animation: none; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    @media (max-width: 560px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .form-group.full { grid-column: 1; }
+      header h1 { font-size: 1.6rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Video Marketing AI Generator</h1>
+      <p>Inserisci il tuo prodotto e ricevi script AIDA + visual concept in secondi</p>
+    </header>
+
+    <div class="card">
+      <h2>Dati Campagna</h2>
+      <form id="form">
+        <div class="form-grid">
+          <div class="form-group full">
+            <label for="product">Nome Prodotto *</label>
+            <input
+              type="text"
+              id="product"
+              placeholder="es. Integratore al magnesio per il sonno"
+              required
+            />
+          </div>
+
+          <div class="form-group full">
+            <label for="target">Target Audience</label>
+            <textarea
+              id="target"
+              placeholder="es. Donne 30-45 anni, lavoratrici stressate che faticano a dormire"
+            ></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="channel">Canale</label>
+            <select id="channel">
+              <option value="Instagram Reels / TikTok">Instagram Reels / TikTok</option>
+              <option value="YouTube Shorts">YouTube Shorts</option>
+              <option value="Facebook Video">Facebook Video</option>
+              <option value="YouTube Pre-roll">YouTube Pre-roll (15s)</option>
+              <option value="LinkedIn Video">LinkedIn Video</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="tone">Tono</label>
+            <select id="tone">
+              <option value="">Automatico</option>
+              <option value="Emozionale e ispirazionale">Emozionale</option>
+              <option value="Professionale e autorevole">Professionale</option>
+              <option value="Divertente e leggero">Divertente</option>
+              <option value="Urgente e diretto">Urgente</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="btn" type="submit" id="submit-btn">
+          <span id="btn-text">Genera Campagna</span>
+          <span id="btn-icon">🚀</span>
+        </button>
+      </form>
+    </div>
+
+    <div id="output-section">
+      <div class="output-card">
+        <div class="output-toolbar">
+          <span>Risultato Campagna</span>
+          <button class="copy-btn" id="copy-btn">Copia tutto</button>
+        </div>
+        <div id="result"></div>
+        <div class="status-bar">
+          <div class="dot idle" id="status-dot"></div>
+          <span id="status-text">In attesa...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('form');
+    const submitBtn = document.getElementById('submit-btn');
+    const btnText = document.getElementById('btn-text');
+    const btnIcon = document.getElementById('btn-icon');
+    const outputSection = document.getElementById('output-section');
+    const resultEl = document.getElementById('result');
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+    const copyBtn = document.getElementById('copy-btn');
+
+    let fullText = '';
+
+    function setLoading(isLoading) {
+      submitBtn.disabled = isLoading;
+      if (isLoading) {
+        btnText.textContent = 'Generazione in corso...';
+        btnIcon.innerHTML = '<span class="loader"></span>';
+        statusDot.classList.remove('idle');
+        statusText.textContent = 'Claude sta generando la tua campagna...';
+      } else {
+        btnText.textContent = 'Genera Campagna';
+        btnIcon.textContent = '🚀';
+        statusDot.classList.add('idle');
+      }
+    }
+
+    function renderMarkdown(text) {
+      return text
+        .replace(/\*\*(SEZIONE \d+[^*]*)\*\*/g, '<span class="section-title">$1</span>')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/^#{1,3}\s(.+)$/gm, '<span class="section-title">$1</span>');
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const product = document.getElementById('product').value.trim();
+      const target = document.getElementById('target').value.trim();
+      const channel = document.getElementById('channel').value;
+      const tone = document.getElementById('tone').value;
+
+      if (!product) return;
+
+      fullText = '';
+      resultEl.innerHTML = '';
+      outputSection.style.display = 'block';
+      outputSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setLoading(true);
+
+      const targetFull = [target, tone ? `Tono: ${tone}` : ''].filter(Boolean).join(' | ');
+
+      try {
+        const res = await fetch('/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ product, target: targetFull, channel }),
+        });
+
+        if (!res.ok) throw new Error('Errore server');
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.error) {
+                resultEl.innerHTML += `<span style="color:#ef4444">Errore: ${data.error}</span>`;
+                break;
+              }
+              if (data.done) {
+                statusText.textContent = 'Completato! ✓';
+                break;
+              }
+              if (data.text) {
+                fullText += data.text;
+                resultEl.innerHTML = renderMarkdown(fullText);
+                resultEl.scrollTop = resultEl.scrollHeight;
+              }
+            } catch (_) {}
+          }
+        }
+      } catch (err) {
+        resultEl.innerHTML = `<span style="color:#ef4444">Errore di connessione: ${err.message}</span>`;
+        statusText.textContent = 'Errore';
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    copyBtn.addEventListener('click', () => {
+      if (!fullText) return;
+      navigator.clipboard.writeText(fullText).then(() => {
+        copyBtn.textContent = 'Copiato ✓';
+        setTimeout(() => { copyBtn.textContent = 'Copia tutto'; }, 2000);
+      });
+    });
+  </script>
+</body>
+</html>
